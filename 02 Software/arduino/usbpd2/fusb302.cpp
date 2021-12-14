@@ -129,7 +129,7 @@ void USB302_Read_FIFO(uint8_t *data, uint8_t length)
 
 //检测cc脚上是否有连接
 //返回 0 失败， 1 成功
-uint8_t USB302_Chech_CCx(void)
+uint8_t USB302_Check_CCx(void)
 {
   uint8_t Read_State;
   USB302_Wite_Reg(0x0C, 0x02); // PD Reset
@@ -162,10 +162,12 @@ uint8_t USB302_Chech_CCx(void)
 
 uint8_t USB302_Init(void)
 {
-
-  udp_debug("Checking PD UFP..");
-  if (USB302_Chech_CCx() == 0)
+  if (USB302_Check_CCx() == 0)
+  {
+    udp_debug("check CC failed\n");
     return 0; //检查有没有接着设备
+  }
+  udp_debug("detect CC!\n");
   USB302_Wite_Reg(0x09, 0x40);//发送硬件复位包
   USB302_Wite_Reg(0x0C, 0x03); // Reset FUSB302
   //USB302_EXTI_Init();
@@ -203,6 +205,7 @@ uint8_t USB302_Init(void)
   PD_STEP = 0;
   PD_Source_Capabilities_Inf_num = 0;
   /*  USB302_Wite_Reg(0x07, 0x04); // Flush RX*/
+  udp_debug("fusb302 init finish!\n");
   return 1;
 }
 
@@ -240,10 +243,9 @@ void USB302_Data_Service(void)//数据服务
 {
   char tmp[32];
   
-  //if (USB302_INT)
   {
     USB302_Read_Service();
-    USB302_INT = 0;
+
     if (RX_Token) //token有效
     {
       PD_Msg_ID_ADD();
@@ -276,7 +278,9 @@ void USB302_Data_Service(void)//数据服务
       }
       else//数据消息
       {
-        udp_debug("Data Message:");
+        udp_debug("Data Message:\n");
+        sprintf(tmp, "header:%x\n", RX_Header & 0xF);
+        udp_debug(tmp);        
         if ((RX_Header & 0xF) == 0x01) //Source_Capabilities
         {
           udp_debug("Source_Capabilities:");
@@ -300,7 +304,7 @@ void USB302_Data_Service(void)//数据服务
             PD_STEP = 1;
             USB302_INT = 0;
             PD_MSG_ID = 0; //现在开始正式从0开始记录
-            udp_debug("ID Reset.");
+            //udp_debug("ID Reset.");
             return;
           }
 
@@ -317,7 +321,7 @@ void USB302_Data_Service(void)//数据服务
           PPS_State = 0; //恢复pps 挡位
         } else {
           //Serial.println(RX_Header & 0xF, BIN);//PS_RDY
-          sprintf(tmp, "%bb", RX_Header & 0xF);
+          sprintf(tmp, "header:%x", RX_Header & 0xF);
           udp_debug(tmp);
         }
 
@@ -331,7 +335,8 @@ void USB302_Send_Requse(uint8_t objects)
 {
   uint8_t i;
   uint16_t cachecur;
-  if (objects > PD_Source_Capabilities_Inf_num) return;
+  if (objects > PD_Source_Capabilities_Inf_num) 
+    return;
 
   //Load_Requse_TX_Buff();
   for (i = 0; i < 14; i++) //装填发送buff
@@ -367,12 +372,13 @@ void PD_Show_Service(void)
   char tmp[64];
   if (PD_STEP == 2)
   {
-    USB302_Send_Requse(1);//进行一次1包请求
+    USB302_Send_Requse(1);//进行一次1包请求, 输出9V
     //Serial.println("Show:");
-    udp_debug("Show:");
+    udp_debug(" Show:\n");
     uint8_t type = (PD_Source_Capabilities_Inf[i].PDC_INF >> 30) & 0x03;
     for (i = 0; i < PD_Source_Capabilities_Inf_num; i++)
     {
+/*      
       if (type == 0) //普通
       {
         udp_debug("Fixed PD--");
@@ -400,6 +406,25 @@ void PD_Show_Service(void)
         //Serial.println((String)"Voltage:" + cachevolmin + "~" + cachevolmax + ", Current:" + cachecur);
         sprintf(tmp, "vol:%f~%f cur:%f\n", cachevolmin, cachevolmax, cachecur);
         udp_debug(tmp);           
+      }
+*/      
+      if (i < 5)
+      {
+        udp_debug("Fixed PD--");
+        cachevolmax = ((PD_Source_Capabilities_Inf[i].PDC_INF >> 10) & 0x3FF) * 0.05f;
+        cachecur = (PD_Source_Capabilities_Inf[i].PDC_INF & 0x3FF) * 0.01f;
+        sprintf(tmp, "vol:%f cur:%f\n", cachevolmax, cachecur);
+        udp_debug(tmp);
+      }
+      else
+      {
+        udp_debug("PPS");
+        cachevolmax = ((PD_Source_Capabilities_Inf[i].PDC_INF >> 17) & 0x7F) * 0.1f;
+        cachevolmin = ((PD_Source_Capabilities_Inf[i].PDC_INF >> 8) & 0x7F) * 0.1f;
+        cachecur = (PD_Source_Capabilities_Inf[i].PDC_INF & 0x7F) * 0.05f;
+        //Serial.println((String)"Voltage:" + cachevolmin + "~" + cachevolmax + ", Current:" + cachecur);
+        sprintf(tmp, "vol:%f~%f cur:%f\n", cachevolmin, cachevolmax, cachecur);
+        udp_debug(tmp);         
       }
     }
     PD_STEP = 3;

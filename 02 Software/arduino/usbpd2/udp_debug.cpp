@@ -27,6 +27,8 @@ void wifi_init(){
 }
 
 void udp_debug(char *str){
+   if(!WiFi.isConnected())
+      return;
    IPAddress local_IP(192, 168, 3, 166);
    Udp.beginPacket(local_IP, 1234);
    //Udp.print("Received: ");

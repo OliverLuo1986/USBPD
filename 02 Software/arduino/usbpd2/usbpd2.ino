@@ -7,6 +7,8 @@
 #include <Wire.h>
 #include <Bounce2.h>
 #include <INA.h>
+#include <TFT_eSPI.h> // Graphics and font library for ST7735 driver chip
+#include <SPI.h>
 #include "udp_debug.h"
 #include "fusb302.h"
 
@@ -14,15 +16,28 @@
 #define BUTTON_LEFT  34
 #define BUTTON_ENTER  35
 #define BUTTON_RIGHT  33
+#define FUSB302_INT   19
+#define POWER_SWITCH  4
+
+#define STARTX    80
+#define STARTY    70
 
 INA_Class         INA; 
+TFT_eSPI tft = TFT_eSPI();  // Invoke library, pins defined in User_Setup.h
+
 Bounce enter_debouncer = Bounce();
 bool enter_key_value = HIGH;
 bool enter_key_old_value = HIGH;
 
+Bounce left_debouncer = Bounce();
+bool left_key_value = HIGH;
+bool left_key_old_value = HIGH;
 
+Bounce right_debouncer = Bounce();
+bool right_key_value = HIGH;
+bool right_key_old_value = HIGH;
 
-uint8_t request_index=0;
+int8_t request_index=1;
 
 volatile uint8_t  deviceNumber    = UINT8_MAX;  ///< Device Number to use in example
 volatile uint64_t sumBusMillVolts = 0;          ///< Sum of bus voltage readings
@@ -58,6 +73,34 @@ void ina266_task()
     cur = INA.getBusMicroAmps(deviceNumber);
     wat = INA.getBusMicroWatts(deviceNumber);
     lastMillis = millis();
+
+    if(cur > 20*1000*1000)
+      cur = 0;
+
+    if(power_on)
+    {
+      tft.setTextColor(TFT_BLUE, TFT_BLACK);
+    }
+    else
+    {
+      tft.setTextColor(TFT_WHITE, TFT_BLACK);
+    }
+    //sprintf(tmp,"Vol :              ");
+    tft.drawString(tmp,STARTX,STARTY,4);
+    sprintf(tmp,"Vol : %0.3f V      ",vol/1000.0);
+    tft.drawString(tmp,STARTX,STARTY,4);
+
+    tft.setTextColor(TFT_YELLOW, TFT_BLACK);
+    sprintf(tmp,"Cur :              ");
+    tft.drawString(tmp,STARTX,STARTY+40,4);
+    sprintf(tmp,"Cur : %04d mA ",cur/1000);
+    tft.drawString(tmp,STARTX,STARTY+40,4);
+
+    tft.setTextColor(TFT_GREEN, TFT_BLACK);
+    sprintf(tmp,"Pow :              ");
+    tft.drawString(tmp,STARTX,STARTY+80,4);
+    sprintf(tmp,"Pow : %0.3f W     ",(vol/1000.0)*(cur/1000/1000.0));
+    tft.drawString(tmp,STARTX,STARTY+80,4);        
     
     sprintf(tmp,"vol:%0.3fV cur:%dmA, power:%0.3fW\n", vol/1000.0, cur/1000, (vol/1000.0)*(cur/1000/1000.0));
     Serial.print(tmp);
@@ -69,17 +112,30 @@ void setup() {
  
   Serial.begin(115200);
 
-  wifi_init();
+  tft.init();
+  tft.setRotation(3);
+  tft.fillScreen(TFT_BLACK);
 
-  pinMode(19, INPUT_PULLUP);
+  tft.setTextColor(TFT_WHITE, TFT_BLACK);  
+  tft.drawString("init...",STARTX+20,STARTY+30,4);
+  
+  //wifi_init();
+
+  pinMode(FUSB302_INT, INPUT_PULLUP);
   pinMode(BUTTON_LEFT, INPUT_PULLUP);
   pinMode(BUTTON_RIGHT, INPUT_PULLUP);
   pinMode(BUTTON_ENTER, INPUT_PULLUP);
-  pinMode(4, OUTPUT);
-  digitalWrite(4,LOW);
+  pinMode(POWER_SWITCH, OUTPUT);
+  digitalWrite(POWER_SWITCH,LOW);
 
   enter_debouncer.attach(BUTTON_ENTER);
   enter_debouncer.interval(100);
+
+  left_debouncer.attach(BUTTON_LEFT);
+  left_debouncer.interval(100);
+
+  right_debouncer.attach(BUTTON_RIGHT);
+  right_debouncer.interval(100);    
   
   Wire.begin();
   
@@ -116,19 +172,12 @@ void setup() {
   INA.setBusConversion(8244, deviceNumber);             // Maximum conversion time 8.244ms
   INA.setShuntConversion(8244, deviceNumber);           // Maximum conversion time 8.244ms
   INA.setMode(INA_MODE_CONTINUOUS_BOTH, deviceNumber);  // Bus/shunt measured continuously
+
+  tft.fillScreen(TFT_BLACK);
 }
 
-
-
-void loop() {
-  
-  PD_Show_Service();
-
-  if (!digitalRead(19)) {
-    USB302_Data_Service();
-    udp_debug("USB302_INT\n");
-  }
-
+void enter_key_update()
+{
   enter_debouncer.update();
   enter_key_value = enter_debouncer.read();
   if(enter_key_value == LOW && enter_key_old_value == HIGH)
@@ -137,23 +186,63 @@ void loop() {
     
     if(power_on)
     {
-        digitalWrite(4,LOW);
+        digitalWrite(POWER_SWITCH,LOW);
         power_on = LOW;
     }
     else
     {
-        request_index++;
-        if(request_index>=4)
-          request_index = 0;
-
-        USB302_Send_Requse(request_index);
-        digitalWrite(4,HIGH);
-        power_on = HIGH;
-
-        
+        digitalWrite(POWER_SWITCH,HIGH);
+        power_on = HIGH; 
     }
   }
   enter_key_old_value = enter_key_value;
+}
+
+void left_key_update()
+{
+  left_debouncer.update();
+  left_key_value = left_debouncer.read();
+  if(left_key_value == LOW && left_key_old_value == HIGH)
+  {
+    Serial.println("left Key Down");
+    
+    request_index--;
+    if(request_index<=-1)
+      request_index = 4;
+
+    USB302_Send_Requse(request_index);
+  }
+  left_key_old_value = left_key_value;
+}
+
+void right_key_update()
+{
+  right_debouncer.update();
+  right_key_value = right_debouncer.read();
+  if(right_key_value == LOW && right_key_old_value == HIGH)
+  {
+    Serial.println("right Key Down");
+    
+    request_index++;
+    if(request_index>=5)
+      request_index = 0;
+
+    USB302_Send_Requse(request_index);
+  }
+  right_key_old_value = right_key_value;
+}
+
+void loop() {
+  
+  PD_Show_Service();
+
+  if (!digitalRead(FUSB302_INT)) {
+    USB302_Data_Service();
+  }
+
+  right_key_update();
+  left_key_update();
+  enter_key_update();
 
   ina266_task();
 }
