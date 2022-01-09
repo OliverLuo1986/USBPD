@@ -13,14 +13,15 @@
 #include "fusb302.h"
 
 
-#define BUTTON_LEFT  34
-#define BUTTON_ENTER  35
-#define BUTTON_RIGHT  33
+#define BUTTON_LEFT  4 //34
+#define BUTTON_ENTER  0 //35
+#define BUTTON_RIGHT  2 //33
 #define FUSB302_INT   19
-#define POWER_SWITCH  4
+#define POWER_SWITCH  16 //4
+#define LCD_BL      9
 
-#define STARTX    80
-#define STARTY    70
+#define STARTX    32
+#define STARTY    4
 
 INA_Class         INA; 
 TFT_eSPI tft = TFT_eSPI();  // Invoke library, pins defined in User_Setup.h
@@ -79,28 +80,28 @@ void ina266_task()
 
     if(power_on)
     {
-      tft.setTextColor(TFT_BLUE, TFT_BLACK);
+      tft.setTextColor(TFT_RED, TFT_BLACK);
     }
     else
     {
       tft.setTextColor(TFT_WHITE, TFT_BLACK);
     }
     //sprintf(tmp,"Vol :              ");
-    tft.drawString(tmp,STARTX,STARTY,4);
+    //tft.drawString(tmp,STARTX,STARTY,2);
     sprintf(tmp,"Vol : %0.3f V      ",vol/1000.0);
-    tft.drawString(tmp,STARTX,STARTY,4);
+    tft.drawString(tmp,STARTX,STARTY,2);
 
     tft.setTextColor(TFT_YELLOW, TFT_BLACK);
     sprintf(tmp,"Cur :              ");
-    tft.drawString(tmp,STARTX,STARTY+40,4);
+    tft.drawString(tmp,STARTX,STARTY+28,2);
     sprintf(tmp,"Cur : %04d mA ",cur/1000);
-    tft.drawString(tmp,STARTX,STARTY+40,4);
+    tft.drawString(tmp,STARTX,STARTY+28,2);
 
     tft.setTextColor(TFT_GREEN, TFT_BLACK);
     sprintf(tmp,"Pow :              ");
-    tft.drawString(tmp,STARTX,STARTY+80,4);
+    tft.drawString(tmp,STARTX,STARTY+56,2);
     sprintf(tmp,"Pow : %0.3f W     ",(vol/1000.0)*(cur/1000/1000.0));
-    tft.drawString(tmp,STARTX,STARTY+80,4);        
+    tft.drawString(tmp,STARTX,STARTY+56,2);        
     
     sprintf(tmp,"vol:%0.3fV cur:%dmA, power:%0.3fW\n", vol/1000.0, cur/1000, (vol/1000.0)*(cur/1000/1000.0));
     Serial.print(tmp);
@@ -112,9 +113,11 @@ void setup() {
  
   Serial.begin(115200);
 
+  
+  Serial.println("Init...");
   tft.init();
   tft.setRotation(3);
-  tft.fillScreen(TFT_BLACK);
+  tft.fillScreen(TFT_WHITE);
 
   tft.setTextColor(TFT_WHITE, TFT_BLACK);  
   tft.drawString("init...",STARTX+20,STARTY+30,4);
@@ -128,6 +131,8 @@ void setup() {
   pinMode(POWER_SWITCH, OUTPUT);
   digitalWrite(POWER_SWITCH,LOW);
 
+
+
   enter_debouncer.attach(BUTTON_ENTER);
   enter_debouncer.interval(100);
 
@@ -138,7 +143,8 @@ void setup() {
   right_debouncer.interval(100);    
   
   Wire.begin();
-  
+  Serial.println("USB302_Init...");
+  tft.drawString("USB302_Init...",STARTX+10,STARTY+30,4);
   while (USB302_Init() == 0) //如果初始化一直是0 就说明没插入啥 等
   {
     delay(100);
@@ -149,7 +155,7 @@ void setup() {
   uint8_t devicesFound = 0;
   while (deviceNumber == UINT8_MAX)  // Loop until we find the first device
   {
-    devicesFound = INA.begin(10, 10000);  // +/- 1 Amps maximum for 0.1 Ohm resistor
+    devicesFound = INA.begin(15, 10000);  // +/- 1 Amps maximum for 0.01 Ohm resistor
     Serial.println(INA.getDeviceName(devicesFound - 1));
     for (uint8_t i = 0; i < devicesFound; i++) {
       /* Change the "INA226" in the following statement to whatever device you have attached and
@@ -174,6 +180,8 @@ void setup() {
   INA.setMode(INA_MODE_CONTINUOUS_BOTH, deviceNumber);  // Bus/shunt measured continuously
 
   tft.fillScreen(TFT_BLACK);
+  pinMode(LCD_BL, OUTPUT);
+  digitalWrite(LCD_BL,HIGH);  
 }
 
 void enter_key_update()
@@ -188,11 +196,13 @@ void enter_key_update()
     {
         digitalWrite(POWER_SWITCH,LOW);
         power_on = LOW;
+        Serial.println("POWER Down");
     }
     else
     {
         digitalWrite(POWER_SWITCH,HIGH);
         power_on = HIGH; 
+        Serial.println("POWER UP");
     }
   }
   enter_key_old_value = enter_key_value;
