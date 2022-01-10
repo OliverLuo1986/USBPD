@@ -10,7 +10,7 @@
 
 #define BUTTON_LEFT  2 //34
 #define BUTTON_ENTER  0 //35
-#define BUTTON_RIGHT  4 //33
+#define BUTTON_RIGHT  4 //4 //33
 #define FUSB302_INT   19
 #define POWER_SWITCH  16 //4
 #define LCD_BL      9
@@ -82,16 +82,16 @@ void ina266_task()
     int analog_value = 0;
     analog_value = analogReadMilliVolts(ANALOG_PIN)*11;    
 
-    sprintf(tmp,"#FFFFFF IN  : %d V      ",analog_value/1000);
+    sprintf(tmp,"#FFFFFF IN : %d V",analog_value/1000);
     lv_label_set_text(label1,tmp);      
 
-    sprintf(tmp,"#00FF00 Out : %0.3f V      ",vol/1000.0);
+    sprintf(tmp,"#00FF00 Out : %0.3f V",vol/1000.0);
     lv_label_set_text(label2,tmp);
 
-    sprintf(tmp,"#0000FF Cur : %04d mA ",cur/1000);
+    sprintf(tmp,"#0000FF Cur : %04d mA",cur/1000);
     lv_label_set_text(label3,tmp);
 
-    sprintf(tmp,"#FF0000 Pow : %0.3f W     ",(vol/1000.0)*(cur/1000/1000.0));
+    sprintf(tmp,"#FF0000 Pow : %0.3f W",(vol/1000.0)*(cur/1000/1000.0));
     lv_label_set_text(label4,tmp);
 
     sprintf(tmp,"vol:%0.3fV cur:%dmA, power:%0.3fW\n", vol/1000.0, cur/1000, (vol/1000.0)*(cur/1000/1000.0));
@@ -163,61 +163,43 @@ void setup()
   digitalWrite(LCD_BL,HIGH);  
   pinMode(ANALOG_PIN,INPUT);
 
-    lv_obj_t* bgk;
- 
-    bgk = lv_obj_create(lv_scr_act(), NULL);//创建对象
-    lv_obj_clean_style_list(bgk, LV_OBJ_PART_MAIN); //清空对象风格
-    //lv_obj_set_style_local_bg_opa(bgk, LV_OBJ_PART_MAIN, LV_STATE_DEFAULT, LV_OPA_100);//设置颜色覆盖度100%，数值越低，颜色越透。
-    lv_obj_set_style_local_bg_color(bgk, LV_OBJ_PART_MAIN, LV_STATE_DEFAULT, LV_COLOR_BLACK);//设置背景颜色为绿色
-    lv_obj_set_size(bgk, 160, 80);//设置覆盖大小  
+  lv_obj_t* bgk;
+  bgk = lv_obj_create(lv_scr_act(), NULL);//创建对象
+  lv_obj_clean_style_list(bgk, LV_OBJ_PART_MAIN); //清空对象风格
+  lv_obj_set_style_local_bg_opa(bgk, LV_OBJ_PART_MAIN, LV_STATE_DEFAULT, LV_OPA_100);//设置颜色覆盖度100%，数值越低，颜色越透。
+  lv_obj_set_style_local_bg_color(bgk, LV_OBJ_PART_MAIN, LV_STATE_DEFAULT, LV_COLOR_BLACK);//设置背景颜色为绿色
+  lv_obj_set_size(bgk, 160, 80);//设置覆盖大小  
 
-  
-
-  //13. label标签控件
-  //13.1 创建标签
   label1 = lv_label_create(lv_scr_act(), NULL);
   lv_label_set_long_mode(label1, LV_LABEL_LONG_SROLL_CIRC);     /*Break the long lines*/
   lv_label_set_recolor(label1, true);                      /*Enable re-coloring by commands in the text*/
   lv_label_set_align(label1, LV_LABEL_ALIGN_CENTER);       /*Center aligned lines*/
-  //lv_label_set_text(label1, "#000080 Re-color# #0000ff words# #6666ff of a# label "
-  //  "and  wrap long text automatically.");
   lv_obj_set_width(label1, 160);
-  lv_obj_align(label1, NULL, LV_ALIGN_IN_TOP_LEFT, 0, 2);
+  lv_obj_align(label1, NULL, LV_ALIGN_IN_TOP_MID, 0, 2);
 
   label2 = lv_label_create(lv_scr_act(), NULL);
   lv_label_set_long_mode(label2, LV_LABEL_LONG_SROLL_CIRC);     /*Break the long lines*/
   lv_label_set_recolor(label2, true);                      /*Enable re-coloring by commands in the text*/
   lv_label_set_align(label2, LV_LABEL_ALIGN_CENTER);       /*Center aligned lines*/
   lv_obj_set_width(label2, 160);
-  lv_obj_align(label2, label1, LV_ALIGN_OUT_BOTTOM_LEFT, 0, 2);  
+  lv_label_set_text(label2,"");
+  lv_obj_align(label2, label1, LV_ALIGN_OUT_BOTTOM_MID, 0, 2);  
 
   label3 = lv_label_create(lv_scr_act(), NULL);
   lv_label_set_long_mode(label3, LV_LABEL_LONG_SROLL_CIRC);     /*Break the long lines*/
   lv_label_set_recolor(label3, true);                      /*Enable re-coloring by commands in the text*/
   lv_label_set_align(label3, LV_LABEL_ALIGN_CENTER);       /*Center aligned lines*/
   lv_obj_set_width(label3, 160);
-  lv_obj_align(label3, label2, LV_ALIGN_OUT_BOTTOM_LEFT, 0, 2); 
+  lv_label_set_text(label3,"");
+  lv_obj_align(label3, label2, LV_ALIGN_OUT_BOTTOM_MID, 0, 2); 
 
   label4 = lv_label_create(lv_scr_act(), NULL);
   lv_label_set_long_mode(label4, LV_LABEL_LONG_SROLL_CIRC);     /*Break the long lines*/
   lv_label_set_recolor(label4, true);                      /*Enable re-coloring by commands in the text*/
   lv_label_set_align(label4, LV_LABEL_ALIGN_CENTER);       /*Center aligned lines*/
   lv_obj_set_width(label4, 160);
-  lv_obj_align(label4, label3, LV_ALIGN_OUT_BOTTOM_LEFT, 0, 2);    
-
-
-
- 
-
-
-  
- /*
-  lv_obj_t * label2 = lv_label_create(lv_scr_act(), NULL);
-  lv_label_set_long_mode(label2, LV_LABEL_LONG_SROLL_CIRC);     
-  lv_obj_set_width(label2, 150);
-  lv_label_set_text(label2, "It is a circularly scrolling text. ");
-  lv_obj_align(label2, NULL, LV_ALIGN_IN_TOP_LEFT, 0, 60);  
-*/
+  lv_label_set_text(label4,"");
+  lv_obj_align(label4, label3, LV_ALIGN_OUT_BOTTOM_MID, 0, 2);    
 
   enter_debouncer.attach(BUTTON_ENTER);
   enter_debouncer.interval(100);
@@ -253,19 +235,19 @@ void setup()
     }    // of for-next loop through all devices found
     if (deviceNumber == UINT8_MAX) {
       Serial.print(F("No INA found. Waiting 5s and retrying...\n"));
+      lv_label_set_text(label1,"No INA found. Waiting 5s and retrying...");
       delay(5000);
     }  // of if-then no INA226 found
   }    // of if-then no device found
   Serial.print(F("Found INA at device number "));
   Serial.println(deviceNumber);
   Serial.println();
-  INA.setAveraging(64, deviceNumber);                   // Average each reading 64 times
+  //INA.setAveraging(64, deviceNumber);                   // Average each reading 64 times
+  INA.setAveraging(4, deviceNumber); 
   INA.setBusConversion(8244, deviceNumber);             // Maximum conversion time 8.244ms
   INA.setShuntConversion(8244, deviceNumber);           // Maximum conversion time 8.244ms
   INA.setMode(INA_MODE_CONTINUOUS_BOTH, deviceNumber);  // Bus/shunt measured continuously
-  
 
-	//lv_demo_benchmark();
 }
 
 
@@ -335,7 +317,6 @@ void loop()
 	lv_task_handler(); /* let the GUI do its work */
 
   PD_Show_Service();
-
   if (!digitalRead(FUSB302_INT)) {
     USB302_Data_Service();
   }
