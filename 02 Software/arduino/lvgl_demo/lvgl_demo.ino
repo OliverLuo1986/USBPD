@@ -127,7 +127,12 @@ void my_disp_flush(lv_disp_drv_t* disp, const lv_area_t* area, lv_color_t* color
 	lv_disp_flush_ready(disp);
 }
 
-
+static void list_event_handler(lv_obj_t * obj, lv_event_t event)
+{
+  if (event == LV_EVENT_CLICKED) {
+    printf("Clicked: %s\n", lv_list_get_btn_text(obj));
+  }
+}
 
 void setup()
 {
@@ -169,6 +174,26 @@ void setup()
   lv_obj_set_style_local_bg_opa(bgk, LV_OBJ_PART_MAIN, LV_STATE_DEFAULT, LV_OPA_100);//设置颜色覆盖度100%，数值越低，颜色越透。
   lv_obj_set_style_local_bg_color(bgk, LV_OBJ_PART_MAIN, LV_STATE_DEFAULT, LV_COLOR_BLACK);//设置背景颜色为绿色
   lv_obj_set_size(bgk, 160, 80);//设置覆盖大小  
+
+#if 0
+  //16. 列表控件
+  //16.1 创建列表控件
+  lv_obj_t * list1 = lv_list_create(lv_scr_act(), NULL);
+  lv_obj_set_size(list1, 160, 200);
+  lv_obj_align(list1, NULL, LV_ALIGN_IN_TOP_MID, -180, 0);
+  //16.2 添加按钮到列表控件
+  lv_obj_t * list_btn;
+  list_btn = lv_list_add_btn(list1, LV_SYMBOL_FILE, "New");
+  lv_obj_set_event_cb(list_btn, list_event_handler);
+  list_btn = lv_list_add_btn(list1, LV_SYMBOL_DIRECTORY, "Open");
+  lv_obj_set_event_cb(list_btn, list_event_handler);
+  list_btn = lv_list_add_btn(list1, LV_SYMBOL_CLOSE, "Delete");
+  lv_obj_set_event_cb(list_btn, list_event_handler);
+  list_btn = lv_list_add_btn(list1, LV_SYMBOL_EDIT, "Edit");
+  lv_obj_set_event_cb(list_btn, list_event_handler);
+  list_btn = lv_list_add_btn(list1, NULL, "Save");
+  lv_obj_set_event_cb(list_btn, list_event_handler);
+#endif  
 
   label1 = lv_label_create(lv_scr_act(), NULL);
   lv_label_set_long_mode(label1, LV_LABEL_LONG_SROLL_CIRC);     /*Break the long lines*/
@@ -242,7 +267,6 @@ void setup()
   Serial.print(F("Found INA at device number "));
   Serial.println(deviceNumber);
   Serial.println();
-  //INA.setAveraging(64, deviceNumber);                   // Average each reading 64 times
   INA.setAveraging(4, deviceNumber); 
   INA.setBusConversion(8244, deviceNumber);             // Maximum conversion time 8.244ms
   INA.setShuntConversion(8244, deviceNumber);           // Maximum conversion time 8.244ms
