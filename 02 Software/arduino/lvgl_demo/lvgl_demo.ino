@@ -8,11 +8,11 @@
 #include "udp_debug.h"
 #include "fusb302.h"
 
-#define BUTTON_LEFT  2 //34
-#define BUTTON_ENTER  0 //35
-#define BUTTON_RIGHT  4 //4 //33
+#define BUTTON_LEFT  15 
+#define BUTTON_ENTER  0 
+#define BUTTON_RIGHT  2 
 #define FUSB302_INT   19
-#define POWER_SWITCH  16 //4
+#define POWER_SWITCH  4
 #define LCD_BL      9
 #define ANALOG_PIN   37
 
@@ -138,6 +138,16 @@ void setup()
 {
 	Serial.begin(115200); /* prepare for possible serial debug */
 
+  pinMode(FUSB302_INT, INPUT_PULLUP);
+  pinMode(BUTTON_LEFT, INPUT_PULLUP);
+  pinMode(BUTTON_RIGHT, INPUT_PULLUP);
+  pinMode(BUTTON_ENTER, INPUT_PULLUP);
+  pinMode(POWER_SWITCH, OUTPUT);
+  digitalWrite(POWER_SWITCH,LOW);
+  pinMode(LCD_BL, OUTPUT);
+  digitalWrite(LCD_BL,LOW);  
+  pinMode(ANALOG_PIN,INPUT);
+
 	lv_init();
 
 #if LV_USE_LOG != 0
@@ -158,42 +168,12 @@ void setup()
 	disp_drv.buffer = &disp_buf;
 	lv_disp_drv_register(&disp_drv);
 
-  pinMode(FUSB302_INT, INPUT_PULLUP);
-  pinMode(BUTTON_LEFT, INPUT_PULLUP);
-  pinMode(BUTTON_RIGHT, INPUT_PULLUP);
-  pinMode(BUTTON_ENTER, INPUT_PULLUP);
-  pinMode(POWER_SWITCH, OUTPUT);
-  digitalWrite(POWER_SWITCH,LOW);
-  pinMode(LCD_BL, OUTPUT);
-  digitalWrite(LCD_BL,HIGH);  
-  pinMode(ANALOG_PIN,INPUT);
-
   lv_obj_t* bgk;
   bgk = lv_obj_create(lv_scr_act(), NULL);//创建对象
   lv_obj_clean_style_list(bgk, LV_OBJ_PART_MAIN); //清空对象风格
   lv_obj_set_style_local_bg_opa(bgk, LV_OBJ_PART_MAIN, LV_STATE_DEFAULT, LV_OPA_100);//设置颜色覆盖度100%，数值越低，颜色越透。
   lv_obj_set_style_local_bg_color(bgk, LV_OBJ_PART_MAIN, LV_STATE_DEFAULT, LV_COLOR_BLACK);//设置背景颜色为绿色
   lv_obj_set_size(bgk, 160, 80);//设置覆盖大小  
-
-#if 0
-  //16. 列表控件
-  //16.1 创建列表控件
-  lv_obj_t * list1 = lv_list_create(lv_scr_act(), NULL);
-  lv_obj_set_size(list1, 160, 200);
-  lv_obj_align(list1, NULL, LV_ALIGN_IN_TOP_MID, -180, 0);
-  //16.2 添加按钮到列表控件
-  lv_obj_t * list_btn;
-  list_btn = lv_list_add_btn(list1, LV_SYMBOL_FILE, "New");
-  lv_obj_set_event_cb(list_btn, list_event_handler);
-  list_btn = lv_list_add_btn(list1, LV_SYMBOL_DIRECTORY, "Open");
-  lv_obj_set_event_cb(list_btn, list_event_handler);
-  list_btn = lv_list_add_btn(list1, LV_SYMBOL_CLOSE, "Delete");
-  lv_obj_set_event_cb(list_btn, list_event_handler);
-  list_btn = lv_list_add_btn(list1, LV_SYMBOL_EDIT, "Edit");
-  lv_obj_set_event_cb(list_btn, list_event_handler);
-  list_btn = lv_list_add_btn(list1, NULL, "Save");
-  lv_obj_set_event_cb(list_btn, list_event_handler);
-#endif  
 
   label1 = lv_label_create(lv_scr_act(), NULL);
   lv_label_set_long_mode(label1, LV_LABEL_LONG_SROLL_CIRC);     /*Break the long lines*/
@@ -233,18 +213,22 @@ void setup()
   left_debouncer.interval(100);
 
   right_debouncer.attach(BUTTON_RIGHT);
-  right_debouncer.interval(100);    
+  right_debouncer.interval(100); 
+
+  digitalWrite(LCD_BL,HIGH);     
   
   Wire.begin();
-  lv_label_set_text(label1,"USB302_Init...");
+  lv_label_set_text(label1,"USB302 Init...");
   while (USB302_Init() == 0) //如果初始化一直是0 就说明没插入啥 等
   {
     delay(100);
   }
   
-  lv_label_set_text(label1,"USB302_Init OK");
+  lv_label_set_text(label1,"USB302 Init OK");
 
   uint8_t devicesFound = 0;
+
+  lv_label_set_text(label2,"INA226 Init...");
   while (deviceNumber == UINT8_MAX)  // Loop until we find the first device
   {
     devicesFound = INA.begin(10, 10000);  // +/- 1 Amps maximum for 0.01 Ohm resistor
@@ -255,6 +239,7 @@ void setup()
       if (strcmp(INA.getDeviceName(i), "INA226") == 0) {
         deviceNumber = i;
         INA.reset(deviceNumber);  // Reset device to default settings
+        lv_label_set_text(label2,"INA226 Init OK");
         break;
       }  // of if-then we have found an INA226
     }    // of for-next loop through all devices found
@@ -324,7 +309,6 @@ void right_key_update()
   if(right_key_value == LOW && right_key_old_value == HIGH)
   {
     Serial.println("right Key Down");
-    
     
     if(request_index<4)
     {
